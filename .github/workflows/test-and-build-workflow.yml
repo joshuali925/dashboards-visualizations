@@ -22,7 +22,7 @@ jobs:
       # this image tag is subject to change as more dependencies and updates will arrive over time
       image: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-version-linux }}
       # need to switch to root so that github actions can install runner binary on container without permission issues.
-      options: --user root
+      options: --user opensearch
 
     steps:
       - name: Checkout Plugin
@@ -41,9 +41,8 @@ jobs:
 
       - name: Plugin Bootstrap / stylelint / test
         run: |
-          chown -R 1000:1000 `pwd`
           cd dashboards-visualizations/OpenSearch-Dashboards/
-          su `id -un 1000` -c "source $NVM_DIR/nvm.sh && nvm use && node -v && yarn -v &&
+          bash -c "source $NVM_DIR/nvm.sh && nvm use && node -v && yarn -v &&
                                cd ./plugins/gantt-chart &&
                                whoami && yarn osd bootstrap && yarn lint:style && yarn test --coverage"
 
@@ -55,9 +54,8 @@ jobs:
 
       - name: Build Artifact
         run: |
-          chown -R 1000:1000 `pwd`
           cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          su `id -un 1000` -c "source $NVM_DIR/nvm.sh && nvm use && node -v && yarn -v && yarn build"
+          bash -c "source $NVM_DIR/nvm.sh && nvm use && node -v && yarn -v && yarn build"
           mv ./build/*.zip ./build/${{ env.PLUGIN_NAME }}-${{ env.OPENSEARCH_PLUGIN_VERSION }}.zip
 
       - name: Upload Artifact
@@ -65,133 +63,3 @@ jobs:
         with:
           name: gantt-chart-ubuntu
           path: ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart/build
-
-  windows-build:
-
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Plugin
-        uses: actions/checkout@v2
-      # Enable longer filenames for windows
-      - name: Enable longer filenames
-        run: git config --system core.longpaths true
-
-      - name: Checkout OpenSearch Dashboards
-        uses: actions/checkout@v2
-        with:
-          repository: opensearch-project/Opensearch-Dashboards
-          ref: ${{ env.OPENSEARCH_VERSION }}
-          path: dashboards-visualizations/OpenSearch-Dashboards
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: './dashboards-visualizations/OpenSearch-Dashboards/.nvmrc'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install Yarn
-        # Need to use bash to avoid having a windows/linux specific step
-        shell: bash
-        run: |
-          YARN_VERSION=$(node -p "require('./dashboards-visualizations/OpenSearch-Dashboards/package.json').engines.yarn")
-          echo "Installing yarn@$YARN_VERSION"
-          npm i -g yarn@$YARN_VERSION
-
-      - run: node -v
-      - run: yarn -v
-
-      - name: Move Gantt Chart to Plugins Dir
-        run: |
-          mv gantt-chart ./dashboards-visualizations/OpenSearch-Dashboards/plugins
-
-      - name: Plugin Bootstrap
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn osd bootstrap
-
-      - name: Run Stylelint
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn lint:style
-
-      - name: Test
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn test
-
-      - name: Build Artifact
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn build
-          mv ./build/*.zip ./build/${{ env.PLUGIN_NAME }}-${{ env.OPENSEARCH_PLUGIN_VERSION }}.zip
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: gantt-chart-windows
-          path: ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart/build
-  
-  macos-build:
-
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout Plugin
-        uses: actions/checkout@v2
-
-      - name: Checkout OpenSearch Dashboards
-        uses: actions/checkout@v2
-        with:
-          repository: opensearch-project/Opensearch-Dashboards
-          ref: ${{ env.OPENSEARCH_VERSION }}
-          path: dashboards-visualizations/OpenSearch-Dashboards
-
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: './dashboards-visualizations/OpenSearch-Dashboards/.nvmrc'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install Yarn
-        # Need to use bash to avoid having a windows/linux specific step
-        shell: bash
-        run: |
-          YARN_VERSION=$(node -p "require('./dashboards-visualizations/OpenSearch-Dashboards/package.json').engines.yarn")
-          echo "Installing yarn@$YARN_VERSION"
-          npm i -g yarn@$YARN_VERSION
-
-      - run: node -v
-      - run: yarn -v
-
-      - name: Move Gantt Chart to Plugins Dir
-        run: |
-          mv gantt-chart ./dashboards-visualizations/OpenSearch-Dashboards/plugins
-
-      - name: Plugin Bootstrap
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn osd bootstrap
-
-      - name: Run Stylelint
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn lint:style
-
-      - name: Test
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn test
-
-      - name: Build Artifact
-        run: |
-          cd ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart
-          yarn build
-          mv ./build/*.zip ./build/${{ env.PLUGIN_NAME }}-${{ env.OPENSEARCH_PLUGIN_VERSION }}.zip
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: gantt-chart-macos
-          path: ./dashboards-visualizations/OpenSearch-Dashboards/plugins/gantt-chart/build
-
-
